@@ -63,7 +63,8 @@ const osThreadAttr_t MotorTask_attributes = {
   .priority = (osPriority_t) osPriorityLow,
 };
 /* USER CODE BEGIN PV */
-
+int echo = 0;
+int tc1, tc2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,9 +79,16 @@ void StartDefaultTask(void *argument);
 void motorStart(void *argument);
 
 /* USER CODE BEGIN PFP */
-
+void delay_us (uint16_t us);
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
+void delay_us (uint16_t us) {
+	__HAL_TIM_SET_COUNTER(&htim6,xxx);
+	__HAL_TIM_GET_COUNTER(&htim6);
+}
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 
+}
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
@@ -514,7 +522,7 @@ static void MX_GPIO_Init(void)
                           |BuzzerA8_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, Buzzer_Pin|GPIO_PIN_15|Trig_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, Buzzer_Pin|Trig_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
@@ -535,8 +543,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Buzzer_Pin PB15 Trig_Pin */
-  GPIO_InitStruct.Pin = Buzzer_Pin|GPIO_PIN_15|Trig_Pin;
+  /*Configure GPIO pins : Buzzer_Pin Trig_Pin */
+  GPIO_InitStruct.Pin = Buzzer_Pin|Trig_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

@@ -81,12 +81,12 @@ void Error_Handler(void);
 #define H4_TIMER_GPIO_Port GPIOE
 #define Buzzer_Pin GPIO_PIN_10
 #define Buzzer_GPIO_Port GPIOB
+#define Trig_Pin GPIO_PIN_15
+#define Trig_GPIO_Port GPIOB
 #define Echo_Pin GPIO_PIN_7
 #define Echo_GPIO_Port GPIOC
 #define BuzzerA8_Pin GPIO_PIN_8
 #define BuzzerA8_GPIO_Port GPIOA
-#define Trig_Pin GPIO_PIN_5
-#define Trig_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
