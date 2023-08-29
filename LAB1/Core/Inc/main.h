@@ -49,8 +49,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -59,35 +57,22 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SCLK_Pin GPIO_PIN_5
-#define SCLK_GPIO_Port GPIOE
-#define SDIN_Pin GPIO_PIN_6
-#define SDIN_GPIO_Port GPIOE
-#define AIN2_Pin GPIO_PIN_2
-#define AIN2_GPIO_Port GPIOA
-#define AIN1_Pin GPIO_PIN_3
-#define AIN1_GPIO_Port GPIOA
-#define BIN1_Pin GPIO_PIN_4
-#define BIN1_GPIO_Port GPIOA
-#define BIN2_Pin GPIO_PIN_5
-#define BIN2_GPIO_Port GPIOA
-#define RESET__Pin GPIO_PIN_7
-#define RESET__GPIO_Port GPIOE
-#define DC_Pin GPIO_PIN_8
-#define DC_GPIO_Port GPIOE
-#define LED3_Pin GPIO_PIN_10
-#define LED3_GPIO_Port GPIOE
-#define H4_TIMER_Pin GPIO_PIN_14
-#define H4_TIMER_GPIO_Port GPIOE
-#define Buzzer_Pin GPIO_PIN_10
-#define Buzzer_GPIO_Port GPIOB
 #define Trig_Pin GPIO_PIN_15
 #define Trig_GPIO_Port GPIOB
+#define DC_Pin GPIO_PIN_11
+#define DC_GPIO_Port GPIOD
+#define RESET__Pin GPIO_PIN_12
+#define RESET__GPIO_Port GPIOD
+#define SDIN_Pin GPIO_PIN_13
+#define SDIN_GPIO_Port GPIOD
+#define SCLK_Pin GPIO_PIN_14
+#define SCLK_GPIO_Port GPIOD
 #define Echo_Pin GPIO_PIN_7
 #define Echo_GPIO_Port GPIOC
-#define BuzzerA8_Pin GPIO_PIN_8
-#define BuzzerA8_GPIO_Port GPIOA
-
+#define Buzzer_Pin GPIO_PIN_8
+#define Buzzer_GPIO_Port GPIOC
+#define LED3_Pin GPIO_PIN_12
+#define LED3_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
