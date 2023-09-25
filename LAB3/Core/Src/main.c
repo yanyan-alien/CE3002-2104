@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "oled.h"
+#include "MPU6050.h"
+#include "stdio.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,67 +41,33 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- TIM_HandleTypeDef htim6;
-TIM_HandleTypeDef htim8;
+ I2C_HandleTypeDef hi2c2;
 
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-int echo = 0;
-int tc1, tc2;
-// since initially it is not rising?
-int pos_edge = 0;
-
+uint8_t IMU_ADDR = 0x68<<1;
+IMU_Data imu;
+float pitch_acc, roll_acc;
+float pitch_gyro, roll_gyro, yaw_gyro;
+float roll_theta, pitch_theta;
+uint32_t millisOld, millisNow; // time value
+uint32_t angleOld, angleNow;
+float dt;// time elapse
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_I2C2_Init(void);
 static void MX_USART3_UART_Init(void);
-static void MX_TIM6_Init(void);
-static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
-void delay_us (uint16_t us);
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void delay_us (uint16_t us) {
-	__HAL_TIM_SET_COUNTER(&htim6,0);
-	while(__HAL_TIM_GET_COUNTER(&htim6) < us){
-	}
-	__HAL_TIM_SET_COUNTER(&htim6,0);
-	HAL_TIM_IC_CaptureCallback(&htim6);
-}
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-	if(htim==&htim8) {
-		if(pos_edge == 0) {
-			tc1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-			pos_edge = 1;
-			echo = 120;
-		}
-		else {
-			tc2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-			if (tc2>tc1) echo = (tc2-tc1);
-			else echo = ((65536-tc1) + tc2);
-			pos_edge = 0; // reset
-		}
-	}
-}
 
-void UltraSonic(void){
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-	HAL_Delay(50);
-
-	HAL_TIM_Base_Start(&htim6);
-	HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_2);
-	__HAL_TIM_SET_CAPTUREPOLARITY(&htim8, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
-
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
-  delay_us(10);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-}
 /* USER CODE END 0 */
 
 /**
@@ -109,8 +77,8 @@ void UltraSonic(void){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-//	uint8_t sbuf[15] =  "Hello World\n\r";
-	uint8_t *OLED_buf;
+	char sbuf[10][15];
+	float alpha = 0.2;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -131,51 +99,62 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_I2C2_Init();
   MX_USART3_UART_Init();
-  MX_TIM6_Init();
-  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-  OLED_Init();
-//  OLED_ShowString(10,5, "CE3002"); //line 10
-//  OLED_buf = "Lab 1";
-//  OLED_ShowString(40,30, OLED_buf); //line 40
-//  OLED_Refresh_Gram();
-  HAL_TIM_Base_Start(&htim6);
-  HAL_TIM_IC_Start_IT(&htim8, TIM_CHANNEL_2);
+  IMU_Initialise(&imu, &hi2c2, &huart3);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	    OLED_ShowString(10,5, "CE3002"); //line 10
-//	    OLED_buf = "Lab 1";
-//	    OLED_ShowString(40,30, OLED_buf); //line 40
-//	    OLED_Refresh_Gram();
+	 IMU_GyroRead(&imu);
+	 IMU_AccelRead(&imu);
+//
+	 pitch_acc = atan2(imu.acc[0],imu.acc[2]); //pitch =arcTan(aX/aZ)
+	 pitch_acc = pitch_acc * 57.3; //change from radian to degree
+//
+	 roll_acc = atan2(imu.acc[1],imu.acc[2]); //roll =arcTan(aY/aZ)
+	 roll_acc = pitch_acc * 57.3; //change from radian to degree
 
-	  delay_us(10);
-	  char buf[15];
-	  sprintf(buf, "Echo = %5dus ", echo);
-	  OLED_ShowString(10, 40, &buf[0]);
-	  OLED_Refresh_Gram();
-	  float dist = echo * 343 / 2;
-	  sprintf(buf, "Dist = %5.1fcm ", dist);
-	  OLED_ShowString(10, 50, &buf[0]);
-	  OLED_Refresh_Gram();
 
-//	  HAL_UART_Transmit(&huart3, sbuf, sizeof(sbuf), HAL_MAX_DELAY);
-//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+	 pitch_gyro = imu.gyro[0];
+	 roll_gyro = imu.gyro[1];
+//	 yaw_gyro = imu.gyro[2];
+	  millisNow = HAL_GetTick(); // get the current time
+	  dt = (millisNow - millisOld)*0.001; // time elapsed in millisecond
+	  millisOld = millisNow; // store the current time for next round
+	  pitch_gyro = pitch_gyro + pitch_gyro * dt;
+	  roll_gyro = roll_gyro + roll_gyro * dt;
+//	  yaw_gyro = yaw_gyro + yaw_gyro * dt;
 
-//	  HAL_GPIO_WritePin(GPIOE, LED3_Pin, GPIO_PIN_SET);
-//	  HAL_GPIO_WritePin(GPIOA, Buzzer_Pin, GPIO_PIN_SET);
-//	  HAL_Delay(1000);
-//	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
-//	  HAL_GPIO_WritePin(GPIOE, LED3_Pin, GPIO_PIN_RESET);
-//	  HAL_GPIO_WritePin(GPIOA, Buzzer_Pin, GPIO_PIN_RESET);
-//	  HAL_Delay(1000);
+//
+	  roll_theta = (1-alpha) * roll_acc + alpha * (roll_gyro);
+	pitch_theta =(1-alpha) * pitch_acc + alpha * (pitch_gyro);
+	sprintf(sbuf[0], "PITCH: %3.2f ROLL: %3.2f", pitch_theta, roll_theta);
+//	 for(int i=0;i<3;i++) {
+//		 sprintf(sbuf[i], "%7.2f ", imu.gyro[i]);
+//		 HAL_UART_Transmit(&huart3, sbuf[i+6], 8, HAL_MAX_DELAY);
+//		 sprintf(sbuf[i], "%7.2f ", imu.acc[i]);
+		 HAL_UART_Transmit(&huart3, sbuf[0], 8, HAL_MAX_DELAY);
+
+//	 }
+//	 sprintf(sbuf[3],"%7.2f ", pitch_gyro);
+//	 sprintf(sbuf[4],"%7.2f ", roll_gyro);
+//	 sprintf(sbuf[5],"%7.2f ", yaw_gyro);
+//	 HAL_UART_Transmit(&huart3, sbuf[0], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, sbuf[1], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, sbuf[2], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, sbuf[3], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, sbuf[4], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, sbuf[5], 8, HAL_MAX_DELAY);
+//	 HAL_UART_Transmit(&huart3, "\r\n", 2, HAL_MAX_DELAY);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }
@@ -222,99 +201,36 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief TIM6 Initialization Function
+  * @brief I2C2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM6_Init(void)
+static void MX_I2C2_Init(void)
 {
 
-  /* USER CODE BEGIN TIM6_Init 0 */
+  /* USER CODE BEGIN I2C2_Init 0 */
 
-  /* USER CODE END TIM6_Init 0 */
+  /* USER CODE END I2C2_Init 0 */
 
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  /* USER CODE BEGIN I2C2_Init 1 */
 
-  /* USER CODE BEGIN TIM6_Init 1 */
-
-  /* USER CODE END TIM6_Init 1 */
-  htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 16-1;
-  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 65535;
-  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 1000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM6_Init 2 */
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-  /* USER CODE END TIM6_Init 2 */
-
-}
-
-/**
-  * @brief TIM8 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM8_Init(void)
-{
-
-  /* USER CODE BEGIN TIM8_Init 0 */
-
-  /* USER CODE END TIM8_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
-
-  /* USER CODE BEGIN TIM8_Init 1 */
-
-  /* USER CODE END TIM8_Init 1 */
-  htim8.Instance = TIM8;
-  htim8.Init.Prescaler = 16-1;
-  htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim8.Init.Period = 65535;
-  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim8.Init.RepetitionCounter = 0;
-  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim8, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_Init(&htim8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim8, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim8, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM8_Init 2 */
-
-  /* USER CODE END TIM8_Init 2 */
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -363,41 +279,10 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, DC_Pin|RESET__Pin|SDIN_Pin|SCLK_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Buzzer_GPIO_Port, Buzzer_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : Trig_Pin */
-  GPIO_InitStruct.Pin = Trig_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Trig_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DC_Pin RESET__Pin SDIN_Pin SCLK_Pin */
-  GPIO_InitStruct.Pin = DC_Pin|RESET__Pin|SDIN_Pin|SCLK_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : Buzzer_Pin */
-  GPIO_InitStruct.Pin = Buzzer_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Buzzer_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED3_Pin */
   GPIO_InitStruct.Pin = LED3_Pin;
