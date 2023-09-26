@@ -48,8 +48,8 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 uint8_t IMU_ADDR = 0x68<<1;
 IMU_Data imu;
-float pitch_a, roll_a;
-float pitch_g, roll_g, yaw_g;
+float pitch_a=0, roll_a=0;
+float pitch_g=0, roll_g=0, yaw_g;
 float pitch_var, roll_var, roll_kg, pitch_kg;
 uint32_t millisOld, millisNow; // time value
 //uint32_t angleOld, angleNow;
@@ -108,12 +108,9 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   IMU_Initialise(&imu, &hi2c2, &huart3);
-  IMU_GyroRead(&imu);
-  millisOld = HAL_GetTick(); // get the current time
-  roll_g = imu.gyro[0];
-  pitch_g = imu.gyro[1];
+
 //  TODO change alpha
-  alpha = 0.2;
+  alpha = 0.8;
 
   /* USER CODE END 2 */
 
@@ -123,52 +120,61 @@ int main(void)
   {
 	 IMU_GyroRead(&imu);
 	 IMU_AccelRead(&imu);
-//
+
+   millisOld = HAL_GetTick(); // get the current time
+   roll_g = imu.gyro[0];
+   pitch_g = imu.gyro[1];
+
 	 pitch_a= atan2(imu.acc[0],imu.acc[2]); //pitch =arcTan(aX/aZ)
 	 pitch_a= -pitch_a* 57.3; //change from radian to degree
-//
+
 	 roll_a = atan2(imu.acc[1],imu.acc[2]); //roll =arcTan(aY/aZ)
 	 roll_a = roll_a* 57.3; //change from radian to degree
+   
+   millisNow = HAL_GetTick(); // get the current time
+	 dt = (millisNow - millisOld)*0.001; // time elapsed in millisecond
+	 millisOld = millisNow; // store the current time for next round
 
-	  millisNow = HAL_GetTick(); // get the current time
-	  dt = (millisNow - millisOld)*0.001; // time elapsed in millisecond
-	  millisOld = millisNow; // store the current time for next round
 
-
-	  roll_g = roll_g + dt * imu.gyro[0];
-	  pitch_g = pitch_g + dt * imu.gyro[1];
+	 roll_g = roll_g + dt * imu.gyro[0];
+	 pitch_g = pitch_g + dt * imu.gyro[1];
+    
+   sprintf(sbuf[0], "%7.2f ", roll_g);
+	 sprintf(sbuf[1], "%7.2f ", pitch_g);
+   sprintf(sbuf[2], "%7.2f ", roll_a);
+   sprintf(sbuf[3], "%7.2f ", pitch_a);
 
 //	  COMPLIMENTARY FILTER
-	  roll_cf = (1-alpha) * roll_a + alpha * (roll_g);
-	  pitch_cf = (1-alpha) * pitch_a + alpha * (pitch_g);
+	 roll_cf = (1-alpha) * roll_a + alpha * (roll_cf + roll_g);
+	 pitch_cf = (1-alpha) * pitch_a + alpha * (pitch_cf + pitch_g);
 
-	 sprintf(sbuf[0], "%7.2f ", roll_cf);
-	 sprintf(sbuf[1], "%7.2f ", pitch_cf);
-	 HAL_UART_Transmit(&huart3, sbuf[0], 8, HAL_MAX_DELAY);
-	 HAL_UART_Transmit(&huart3, sbuf[1], 8, HAL_MAX_DELAY);
+	 sprintf(sbuf[4], "%7.2f ", roll_cf);
+	 sprintf(sbuf[5], "%7.2f ", pitch_cf);
 //	 HAL_UART_Transmit(&huart3, "\r\n", 2, HAL_MAX_DELAY);
 
 
 //	  KALMAN FILTER
-	  roll_g_var = roll_g_var + (dt*dt)*Var_gyro;
-	  pitch_g_var = pitch_g_var + (dt*dt)*Var_gyro;
+	 roll_g_var = roll_g_var + (dt*dt)* Var_gyro;
+	 pitch_g_var = pitch_g_var + (dt*dt) * Var_gyro;
 
-	  roll_kg = roll_g_var / (roll_g_var + Var_acc);
-	  pitch_kg = pitch_g_var / (pitch_g_var + Var_acc);
+	 roll_kg = roll_g_var / (roll_g_var + Var_acc);
+	 pitch_kg = pitch_g_var / (pitch_g_var + Var_acc);
 
-	  roll_kf = roll_g + roll_kg * (roll_a - roll_g);
-	  pitch_kf = pitch_g + pitch_kg * (pitch_a - pitch_g);
+	 roll_kf = roll_g + roll_kg * (roll_a - roll_g);
+	 pitch_kf = pitch_g + pitch_kg * (pitch_a - pitch_g);
 
-	  roll_var = (1 - roll_kg) * roll_g_var;
-	  pitch_var = (1 - pitch_kg) * pitch_g_var;
+	 roll_var = (1 - roll_kg) * roll_g_var;
+	 pitch_var = (1 - pitch_kg) * pitch_g_var;
 
-	  roll_g_var = roll_var;
-	  pitch_g_var = pitch_var;
+	 roll_g_var = roll_var;
+	 pitch_g_var = pitch_var;
 
-	 sprintf(sbuf[2], "%7.2f ", roll_kf);
-	 sprintf(sbuf[3], "%7.2f ", pitch_kf);
-	 HAL_UART_Transmit(&huart3, sbuf[2], 8, HAL_MAX_DELAY);
-	 HAL_UART_Transmit(&huart3, sbuf[3], 8, HAL_MAX_DELAY);
+	 sprintf(sbuf[6], "%7.2f ", roll_kf);
+	 sprintf(sbuf[7], "%7.2f ", pitch_kf);
+
+   for(int i=0;i<8;i++) {
+    HAL_UART_Transmit(&huart3, sbuf[i], 8, HAL_MAX_DELAY); 
+   }
 	 HAL_UART_Transmit(&huart3, "\r\n", 2, HAL_MAX_DELAY);
 
     /* USER CODE END WHILE */
