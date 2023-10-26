@@ -1,0 +1,11 @@
+../Core/Src/oled_SC2104D.c:17:6:OLED_WR_Byte	4
+../Core/Src/oled_SC2104D.c:45:6:OLED_Refresh_Gram	3
+../Core/Src/oled_SC2104D.c:60:6:OLED_Clear	3
+../Core/Src/oled_SC2104D.c:70:6:OLED_Display_On	1
+../Core/Src/oled_SC2104D.c:79:6:OLED_Display_Off	1
+../Core/Src/oled_SC2104D.c:89:6:OLED_DrawPoint	4
+../Core/Src/oled_SC2104D.c:102:6:OLED_ShowChar	6
+../Core/Src/oled_SC2104D.c:127:10:oled_pow	2
+../Core/Src/oled_SC2104D.c:137:6:OLED_ShowNumber	5
+../Core/Src/oled_SC2104D.c:159:6:OLED_ShowString	4
+../Core/Src/oled_SC2104D.c:173:6:OLED_Init	1
