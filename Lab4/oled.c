@@ -4,40 +4,28 @@
 #include <oledfont.h>
 #include "stdlib.h"
 
-/**************************************************************************
-Function: Send the data/command to the OLED Display controller using SPI bit-banging
-Input   : dat: data/command on SDIN pin  
-          DataCmd: data/command# on D/C# pin
-			   1 => sending data
-			   0 => sending command
-Output  : none
-
-**************************************************************************/  
-
 void OLED_WR_Byte(uint8_t dat,uint8_t DataCmd)
 {	
 	uint8_t i;
 
-	if(DataCmd == 1) 		// Data write
-	  OLED_RS_Set();		// Set the D/C# line
-	else  					// Command write
-	  OLED_RS_Clr();        // Clear the D/C# line
+	if(DataCmd == 1)    // Data write
+	  OLED_RS_Set();
+	else                // Command write
+	  OLED_RS_Clr();
 
 	for(i=0;i<8;i++)
-	{ // Complete the code below
-		OLED_SCLK_Clr();
-		if(dat&0x80)
+	{	OLED_SCLK_Clr();  // clear the clock
+		if(dat&0x80)      // check data bit
 		   OLED_SDIN_Set();
-		else
+		else 
 		   OLED_SDIN_Clr();
 		OLED_SCLK_Set();
-		dat<<=1;
+		dat<<=1;          // check next data bit
 	}
 
-	OLED_RS_Set();   	  // Keep the D/C# line high upon exit
+	OLED_RS_Set();   	  // Set RS=1 upon exit
 } 
 
-//**************************************************************************
 // Refresh the GRAM
 uint8_t OLED_GRAM[128][8];
 void OLED_Refresh_Gram(void)

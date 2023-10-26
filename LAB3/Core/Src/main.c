@@ -122,8 +122,6 @@ int main(void)
 	 IMU_AccelRead(&imu);
 
    millisOld = HAL_GetTick(); // get the current time
-   roll_g = imu.gyro[0];
-   pitch_g = imu.gyro[1];
 
 	 pitch_a= atan2(imu.acc[0],imu.acc[2]); //pitch =arcTan(aX/aZ)
 	 pitch_a= -pitch_a* 57.3; //change from radian to degree
